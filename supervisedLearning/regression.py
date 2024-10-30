@@ -1,5 +1,8 @@
 import math
 import numpy as np
+from sklearn.preprocessing import PolynomialFeatures, normalize
+
+
 
 class Regression(object):
     '''
@@ -83,10 +86,42 @@ class l2_regularization(): # Ridge
     def grad(self, w):
         return self.alpha * w
     
+class l1_l2_regularization():
+    def __init__(self, alpha, l1_ratio):
+        self.alpha = alpha
+        self.l1_ratio = l1_ratio
+
+    def __call__(self, w):
+        l1_contr = self.l1_ratio * np.linalg.norm(w)
+        l2_contr = (1 - self.l1_ratio) * 0.5 * w.T.dot(w)
+        return self.alpha * (l1_contr + l2_contr)
+    
+    def grad(self, w):
+        l1_contr = self.l1_ratio * np.sign(w)
+        l2_contr = (1 - self.l1_ratio) * w
+        return self.alpha * (l1_contr + l2_contr)
+
 class LassoRegression(Regression):
     def __init__(self, reg_factor, n_iterations=100, learning_rate=0.001):
         self.regularization = l1_regularization(alpha=reg_factor)
         super(LassoRegression, self).__init__(n_iterations, learning_rate)
 
+class RidgeRegression(Regression):
+    def __init__(self, reg_factor, n_iterations=100, learning_rate=0.001):
+        self.regularization = l2_regularization(alpha=reg_factor)
+        super(RidgeRegression, self).__init__(n_iterations, learning_rate)
+
+class ElasticNet(Regression):
+    def __init__(self, degree=1, reg_factor=0.05, l1_ratio=0.5, n_iterations=100, learning_rate=0.01):
+        self.regularization = l1_l2_regularization(alpha=reg_factor, l1_ratio=l1_ratio)
+        self.degree = degree
+        super(ElasticNet, self).__init__(n_iterations, learning_rate)
+
     def fit(self, X, y):
-        super(LassoRegression, self).fit(X, y)
+        self.poly = PolynomialFeatures(degree=self.degree)
+        X = normalize(self.poly.fit_transform(X))
+        super(ElasticNet, self).fit(X, y)
+
+    def predict(self, X, y):
+        X = normalize(self.poly.transform(X))
+        return super(ElasticNet, self).predict(X)
